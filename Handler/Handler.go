@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -37,8 +36,20 @@ func (c *Manejador_Comida) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		Obtener(w, r)
 		return
+	case r.Method == http.MethodDelete && ComidaID.MatchString(r.URL.Path):
+
+		Borrar(w, r)
+		return
+	default:
+		Default(w, r)
+		return
 	}
 
+}
+func Default(w http.ResponseWriter, r *http.Request) {
+
+	io.WriteString(w, "la direccion es incorrecta o no coincide con los metodos CRUD implementados")
+	GenericaError(w, r)
 }
 
 func Obtener(w http.ResponseWriter, r *http.Request) {
@@ -48,15 +59,17 @@ func Obtener(w http.ResponseWriter, r *http.Request) {
 	comida, err := model.Reed(uint(ID))
 	Info_comida := map[string]string{}
 	if err != nil {
+		io.WriteString(w, err.Error())
 		GenericaError(w, r)
+	} else {
+		Info_comida["Nombre"] = comida.Nombre
+		Info_comida["Ingrediente1"] = comida.Ingrediente1
+		Info_comida["Ingrediente2"] = comida.Ingrediente2
+
+		json_comida, _ := json.Marshal(Info_comida)
+
+		w.Write(json_comida)
 	}
-	Info_comida["Nombre"] = comida.Nombre
-	Info_comida["Ingrediente1"] = comida.Ingrediente1
-	Info_comida["Ingrediente2"] = comida.Ingrediente2
-
-	json_comida, _ := json.Marshal(Info_comida)
-
-	w.Write(json_comida)
 }
 
 func Crear(w http.ResponseWriter, r *http.Request) {
@@ -66,17 +79,21 @@ func Crear(w http.ResponseWriter, r *http.Request) {
 
 		GenericaError(w, r)
 	}
-	fmt.Println(comida)
+	if comida.Nombre == "" || comida.Ingrediente1 == "" || comida.Ingrediente2 == "" {
 
-	err := model.Save(comida)
-	if err != nil {
-		log.Fatal(err)
+		io.WriteString(w, "no puede haber datos nulos o con el identificador Nombre, Ingrediente1 ,ingrediente2 incorrecto ")
 		GenericaError(w, r)
+	} else {
+
+		err := model.Save(comida)
+		if err != nil {
+
+			GenericaError(w, r)
+		}
+
+		io.WriteString(w, "se guardo en la base de datos ")
+		w.WriteHeader(http.StatusOK)
 	}
-
-	io.WriteString(w, "se guardo en la base de datos ")
-	w.WriteHeader(http.StatusOK)
-
 }
 
 func Lista(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +131,22 @@ func Actualizar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func Borrar(w http.ResponseWriter, r *http.Request) {
+	number_path := strings.Split(r.URL.Path, "/")
+	ID, _ := strconv.ParseUint(number_path[2], 10, 32)
+
+	err := model.Delete(uint(ID))
+	if err != nil {
+		io.WriteString(w, "No existe la comida con ese ID   ")
+		GenericaError(w, r)
+
+	} else {
+		io.WriteString(w, "se elimino correctamente ")
+		w.WriteHeader(http.StatusOK)
+	}
+
 }
 
 func GenericaError(w http.ResponseWriter, r *http.Request) {

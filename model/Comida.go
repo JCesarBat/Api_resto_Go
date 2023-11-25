@@ -2,14 +2,15 @@ package model
 
 import (
 	"Nuevo_go/JCesarBat/Nuevo_go/db"
+	"errors"
 	"gorm.io/gorm"
 )
 
 type Comida struct {
 	gorm.Model
 	Nombre       string `json:"Nombre"`
-	Ingrediente1 string `json:"Ingrediente1"`
-	Ingrediente2 string `json:"Ingrediente2"`
+	Ingrediente1 string `json:"Ingrediente1,omitempty"`
+	Ingrediente2 string `json:"Ingrediente2,omitempty"`
 }
 
 func Reed(ID uint) (Comida, error) {
@@ -17,9 +18,9 @@ func Reed(ID uint) (Comida, error) {
 
 	result := db.DB.Where(ID).Find(&comida)
 
-	if result.Error != nil {
+	if result.Error != nil || result.RowsAffected == 0 {
 
-		return comida, result.Error
+		return comida, errors.New("no se encontro ese ID ")
 	}
 
 	return comida, nil
@@ -57,4 +58,19 @@ func Update(ID uint, comida Comida) error {
 		return err.Error
 	}
 	return nil
+}
+
+func Delete(ID uint) error {
+
+	comida, err := Reed(ID)
+	if err != nil {
+		return errors.New(" La comida no existe")
+	}
+
+	result := db.DB.Delete(&comida)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+
 }
